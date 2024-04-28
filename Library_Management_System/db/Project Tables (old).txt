@@ -1,0 +1,62 @@
+Database: library_ms
+
+Table: books
+Columns:
+id (Primary Key, Integer)
+title (String)
+author (String)
+genre (String)
+publication_date (Date)
+ISBN (String)
+
+Table: authors
+Columns:
+id (Primary Key, Integer)
+name (String)
+nationality (String)
+birth_date (Date)
+
+Table: genres
+Columns:
+id (Primary Key, Integer)
+name (String)
+
+Table: publishers
+Columns:
+id (Primary Key, Integer)
+name (String)
+location (String)
+contact_info (String)
+
+Table: members
+Columns:
+id (Primary Key, Integer)
+name (String)
+address (String)
+email (String)
+phone_number (String)
+
+Table: loans
+Columns:
+id (Primary Key, Integer)
+member_id (Foreign Key, Integer)
+book_id (Foreign Key, Integer)
+loan_date (Date)
+due_date (Date)
+return_date (Date)
+
+Table: overdues
+Columns:
+id (Primary Key, Integer)
+loan_id (Foreign Key, Integer)
+overdue_fee (Decimal)
+status (String)
+
+Table: reviews
+Columns:
+id (Primary Key, Integer)
+book_id (Foreign Key, Integer)
+member_id (Foreign Key, Integer)
+rating (Integer)
+review_text (String)
+review_date (Date)
