@@ -1,0 +1,10 @@
+SYSTEM:
+    - Login:
+        # Only RegID and PassWD required
+        # Admin can enter through admin PassWD in any account with account holder permission
+        - Admin
+        - Parent
+        - Student
+    - Dashboard:
+        - Admin:
+            -
