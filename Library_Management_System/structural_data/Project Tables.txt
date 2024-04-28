@@ -1,0 +1,104 @@
+AUTHORS:
++-------------+--------------+------+-----+---------+----------------+
+| Field       | Type         | Null | Key | Default | Extra          |
++-------------+--------------+------+-----+---------+----------------+
+| id          | int(11)      | NO   | PRI | NULL    | auto_increment |
+| name        | varchar(255) | NO   |     | NULL    |                |
+| nationality | varchar(255) | YES  |     | NULL    |                |
++-------------+--------------+------+-----+---------+----------------+
+
+
+BOOKS:
++------------------+--------------+------+-----+---------+----------------+
+| Field            | Type         | Null | Key | Default | Extra          |
++------------------+--------------+------+-----+---------+----------------+
+| id               | int(11)      | NO   | PRI | NULL    | auto_increment |
+| title            | varchar(255) | NO   |     | NULL    |                |
+| authorid         | int(11)      | NO   | MUL | NULL    |                |
+| genreid          | int(11)      | YES  | MUL | NULL    |                |
+| publication_year | date         | NO   |     | NULL    |                |
+| isbn             | varchar(255) | NO   |     | NULL    |                |
+| availability     | int(100)     | NO   |     | NULL    |                |
+| shelfid          | int(11)      | NO   | MUL | NULL    |                |
++------------------+--------------+------+-----+---------+----------------+
+
+
+BORROWED BOOKS:
++-------------+------------+------+-----+---------+----------------+
+| Field       | Type       | Null | Key | Default | Extra          |
++-------------+------------+------+-----+---------+----------------+
+| id          | int(11)    | NO   | PRI | NULL    | auto_increment |
+| bookid      | int(11)    | NO   | MUL | NULL    |                |
+| memberid    | int(11)    | NO   | MUL | NULL    |                |
+| borrow_date | date       | NO   |     | NULL    |                |
+| return_date | date       | NO   |     | NULL    |                |
+| returned    | tinyint(1) | NO   |     | 0       |                |
++-------------+------------+------+-----+---------+----------------+
+
+
+GENRE:
++-------+--------------+------+-----+---------+----------------+
+| Field | Type         | Null | Key | Default | Extra          |
++-------+--------------+------+-----+---------+----------------+
+| id    | int(11)      | NO   | PRI | NULL    | auto_increment |
+| name  | varchar(255) | NO   |     | NULL    |                |
++-------+--------------+------+-----+---------+----------------+
+
+
+LIBRARIAN:
++----------+--------------+------+-----+---------+----------------+
+| Field    | Type         | Null | Key | Default | Extra          |
++----------+--------------+------+-----+---------+----------------+
+| id       | int(11)      | NO   | PRI | NULL    | auto_increment |
+| name     | varchar(255) | NO   |     | NULL    |                |
+| username | varchar(255) | NO   |     | NULL    |                |
+| passhash | varchar(255) | NO   |     | NULL    |                |
++----------+--------------+------+-----+---------+----------------+
+
+
+MEMBERS:
++---------+--------------+------+-----+---------+----------------+
+| Field   | Type         | Null | Key | Default | Extra          |
++---------+--------------+------+-----+---------+----------------+
+| id      | int(11)      | NO   | PRI | NULL    | auto_increment |
+| name    | varchar(255) | NO   |     | NULL    |                |
+| email   | varchar(255) | NO   |     | NULL    |                |
+| address | text         | NO   |     | NULL    |                |
+| phno    | varchar(255) | NO   |     | NULL    |                |
++---------+--------------+------+-----+---------+----------------+
+
+
+REVIEWS:
++----------+---------+------+-----+---------+----------------+
+| Field    | Type    | Null | Key | Default | Extra          |
++----------+---------+------+-----+---------+----------------+
+| id       | int(11) | NO   | PRI | NULL    | auto_increment |
+| memberid | int(11) | NO   | MUL | NULL    |                |
+| bookid   | int(11) | NO   | MUL | NULL    |                |
+| rating   | int(10) | NO   |     | NULL    |                |
+| review   | text    | YES  |     | NULL    |                |
++----------+---------+------+-----+---------+----------------+
+
+
+SHELF:
++----------+--------------+------+-----+---------+----------------+
+| Field    | Type         | Null | Key | Default | Extra          |
++----------+--------------+------+-----+---------+----------------+
+| id       | int(11)      | NO   | PRI | NULL    | auto_increment |
+| location | varchar(255) | NO   |     | NULL    |                |
++----------+--------------+------+-----+---------+----------------+
+
+
+TRANSACTIONS:
++-------------+---------+------+-----+---------+----------------+
+| Field       | Type    | Null | Key | Default | Extra          |
++-------------+---------+------+-----+---------+----------------+
+| id          | int(11) | NO   | PRI | NULL    | auto_increment |
+| borrowid    | int(11) | NO   | MUL | NULL    |                |
+| librarianid | int(11) | NO   | MUL | NULL    |                |
+| fine        | int(11) | NO   |     | NULL    |                |
++-------------+---------+------+-----+---------+----------------+
+
+
+
+Author -> Genre -> Shelf -> Librarian -> 
