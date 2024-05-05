@@ -6,12 +6,12 @@ from tkinter.constants import (
     BOTH,
     X,
     NW,
-    DISABLED,
-    W
+    DISABLED
 )
 from tkinter.font import (
     BOLD,
-    NORMAL
+    NORMAL,
+    ITALIC
 )
 
 from customtkinter import (
@@ -24,7 +24,6 @@ from customtkinter import (
     CTkFrame,
     CTkOptionMenu,
     CTkScrollableFrame,
-    CTkToplevel,
     CTkEntry
 )
 from db import LibraryDB
@@ -77,7 +76,9 @@ class LoginFrame(CTkFrame):
             self.entry_frame,
             width=250, height=35, show="•",
             placeholder_text="Enter password",
-            font=CTkFont(**ENTRY_FONT))
+            font=CTkFont(**ENTRY_FONT)
+        )
+        self.password_entry.bind("<Return>", self.check_login)
 
         self.proceed_btn = CTkButton(self.entry_frame, text="Sign-In", font=CTkFont(**BUTTON_FONT), width=250, command=self.check_login)
         self.separator = CTkSeparator(self.entry_frame, width=150)
@@ -107,14 +108,14 @@ class LoginFrame(CTkFrame):
         self.controller.show_frame(RegisterFrame)
         self.controller.current_frame = RegisterFrame
 
-    def check_login(self):
+    def check_login(self, _=None):
         global IS_LOGGED_IN
 
         if self.check_username_password(None):
             IS_LOGGED_IN = True
             self.controller.remove_frame(self.controller.current_frame)
-            self.controller.show_frame(AllBooksFrame)
-            self.controller.current_frame = AllBooksFrame
+            self.controller.show_frame(DashboardFrame)
+            self.controller.current_frame = DashboardFrame
             self.controller.add_logout_btn()
             self.controller.enable_sidebar_buttons()
         else:
@@ -277,7 +278,7 @@ class DashboardFrame(CTkFrame):
         return [
             {
                 "title": "Librarians",
-                "subtitle": "No. of available librarians",
+                "subtitle": "No. of available\nlibrarians",
                 "number": self.database.get_from_query("SELECT COUNT(*) FROM librarian;")[0][0]
             },
             {
@@ -287,19 +288,19 @@ class DashboardFrame(CTkFrame):
             },
             {
                 "title": "Books",
-                "subtitle": "No. of books available",
+                "subtitle": "No. of available books",
                 "number": self.database.get_from_query("SELECT COUNT(*) FROM books;")[0][0]
             },
             {
                 "title": "Popular",
-                "subtitle": "Book with most no. of borrows",
+                "subtitle": "Book with most\nno. of borrows",
                 "number": self.database.get_from_query(
                     "SELECT COUNT(*) AS count_of_books FROM borrowed_books GROUP BY bookid ORDER BY count_of_books DESC;"
                 )[0][0]
             },
             {
                 "title": "Borrowed",
-                "subtitle": "No. of books borrowed till date",
+                "subtitle": "No. of books\nborrowed till date",
                 "number": self.database.get_from_query("SELECT COUNT(*) FROM borrowed_books;")[0][0]
             },
             {
@@ -311,7 +312,7 @@ class DashboardFrame(CTkFrame):
             },
             {
                 "title": "Fines",
-                "subtitle": "Total fine collection till date",
+                "subtitle": "Total fine collection\ntill date",
                 "number": self.database.get_from_query("SELECT COUNT(*) FROM transactions;")[0][0]
             },
             {
@@ -332,13 +333,13 @@ class DashboardFrame(CTkFrame):
         ]
 
     def create_frame_unit(self, title_text: str, subtitle_text: str, text: str):
-        frame = CTkFrame(self, width=100, height=50, border_width=1, border_color="white", corner_radius=0)
+        frame = CTkFrame(self, width=250, height=100, border_width=1, border_color="white", corner_radius=0)
         title = CTkLabel(
             frame,
             text=title_text,
             font=CTkFont(family="Cascadia Code", size=28, weight=NORMAL),
             text_color="white",
-            fg_color="transparent"  # "#428c29"
+            fg_color="transparent"  # "#428c29",
         )
         subtitle = CTkLabel(
             frame,
@@ -347,7 +348,7 @@ class DashboardFrame(CTkFrame):
             text_color="#cccccc",
             fg_color="transparent"
         )
-        number = CTkLabel(frame, text=text, font=CTkFont(family="Cascadia Code", size=45, weight=BOLD))
+        number = CTkLabel(frame, text=text, font=CTkFont(family="Cascadia Code", size=50, weight=BOLD))
         self.frame_list.append((frame, title, subtitle, number))
 
     def create_all_frames(self):
@@ -364,41 +365,16 @@ class DashboardFrame(CTkFrame):
 
         for i, (frame, title, subtitle, number) in enumerate(self.frame_list):
             frame.configure(fg_color=colors[i % 4])
-            frame.grid(row=int(i / 4), column=i % 4, padx=20, pady=(40, 10), ipadx=10, ipady=10)
-            title.grid(row=0, column=0, padx=10, pady=(10, 5))
-            subtitle.grid(row=1, column=0, padx=10, pady=(5, 10))
-            number.grid(row=0, column=1, rowspan=2, padx=10, pady=10)
+            frame.grid(row=int(i / 4), column=i % 4, padx=20, pady=(40, 10), ipadx=10, ipady=10, sticky=NSEW)
+            title.grid(row=0, column=0, padx=10, pady=(10, 5), sticky=NSEW)
+            subtitle.grid(row=1, column=0, padx=10, pady=(5, 10), sticky=NSEW)
+            number.grid(row=0, column=1, rowspan=2, padx=10, pady=10, sticky=NSEW)
 
-
-class BookFrame(CTkFrame):
-    def __init__(self, parent, controller, book_metadata, **kwargs):
-        CTkFrame.__init__(self, parent, controller, **kwargs)
-        self.controller = controller
-        self.database: LibraryDB = self.controller.database
-
-        self.book_metadata = book_metadata
-        self.book_name = book_metadata.get('title')
-        self.genres = []
-        for g in book_metadata.get('genres').split(';'):
-            self.genres.append(self.database.get(
-                table="genre",
-                columns=["name"],
-                where=[f"id={g}"]
-            )[0])
-        self.author = self.database.get(
-            table="authors",
-            columns=["name"],
-            where=[f"id={book_metadata.get('author')}"]
-        )
-        self.publication_year = book_metadata.get('publication_year')
-        self.isbn = book_metadata.get('isbn')
-        self.availability = book_metadata.get('availability')
-        self.borrowed_nums = self.database.get_from_query(
-            f"SELECT COUNT(*) FROM `borrowed_books` WHERE bookid={book_metadata.get('id')}"
-        )[0]
-
-    def create_widgets(self):
-        pass
+    def reset(self):
+        del self.frame_list
+        self.frame_list = []
+        self.create_all_frames()
+        self.create_widgets()
 
 
 class AllBooksFrame(CTkFrame):
@@ -409,8 +385,10 @@ class AllBooksFrame(CTkFrame):
         self.container_label_text = "Library Database View"
 
         self.current_page = 0
-        self.last_index = 49
+        self.last_index = -1
         self.books_frame_list = []
+
+        self.create_all()
 
     def get_books(self, increment=False):
         if increment:
@@ -425,12 +403,67 @@ class AllBooksFrame(CTkFrame):
 
         return book_list
 
+    def create_frame_units(self, metadata):
+        book_name = metadata.get('title')
+        genres = []
+        for g in metadata.get('genreid').rstrip(';').split(';'):
+            genres.append(self.database.get(
+                table="genre",
+                columns=["name"],
+                where=[f"id={g}"]
+            )[0][0])
+        author = self.database.get(
+            table="authors",
+            columns=["name"],
+            where=[f'id="{metadata.get("authorid")}"']
+        )[0][0]
+        publication_year = metadata.get('publication_year')
+        isbn = metadata.get('isbn')
+        availability = str(metadata.get('availability'))
+        borrowed_nums = str(self.database.get_from_query(
+            f"SELECT COUNT(*) FROM `borrowed_books` WHERE bookid={metadata.get('id')} AND returned=0"
+        )[0][0])
+
+        frame = CTkFrame(self, width=400, height=150)
+        title_label = CTkLabel(frame, text=book_name, width=1700, text_color="#9e9515", font=CTkFont(
+            family="Cascadia Code", size=24, weight=BOLD))
+        author_label = CTkLabel(frame, text="Author: " + author, text_color="#2863b5", width=300, font=CTkFont(family="Cascadia Code", size=16, slant=ITALIC))
+        genre_label = CTkLabel(frame, text="Genres: " + " | ".join(genres), width=300, font=CTkFont(family="Cascadia Code", size=16))
+        publication_label = CTkLabel(frame, text="Publication Date: " + str(publication_year), width=300, font=CTkFont(family="Cascadia Code", size=16))
+        isbn_label = CTkLabel(frame, text="ISBN: " + isbn, width=300, font=CTkFont(family="Cascadia Code", size=16, underline=True), cursor="hand2")
+        isbn_label.bind("<Button-1>", lambda _: self.clipboard_append(isbn_label.cget('text')))
+        availability_label = CTkLabel(frame, text="Total Copies: " + availability, width=300, text_color="#c73a3a", font=CTkFont(family="Cascadia Code", size=16))
+        borrowed_label = CTkLabel(frame, text="Borrowed Copies: " + borrowed_nums, width=300, text_color="#16ba27", font=CTkFont(family="Cascadia Code", size=16))
+
+        self.books_frame_list.append((
+            frame,
+            title_label,
+            author_label,
+            genre_label,
+            publication_label,
+            isbn_label,
+            availability_label,
+            borrowed_label
+        ))
+
+    def create_all(self):
+        data = self.get_books()
+        for metadata in data:
+            self.create_frame_units(metadata)
+
     def create_widgets(self):
-        pass
+        for frame, title, author, genre, publication, isbn, availability, borrowed in self.books_frame_list:
+            frame.pack(anchor=N, expand=True, fill=X, pady=10)
+            title.grid(row=0, column=0, columnspan=4, pady=10, sticky=NSEW)
+            author.grid(row=1, column=0, padx=20, pady=10, sticky=NSEW)
+            genre.grid(row=2, column=0, padx=20, pady=10, sticky=NSEW)
+            publication.grid(row=1, column=1, padx=20, pady=10, sticky=NSEW)
+            isbn.grid(row=2, column=1, padx=20, pady=10, sticky=NSEW)
+            availability.grid(row=1, column=2, padx=20, pady=10, sticky=NSEW)
+            borrowed.grid(row=2, column=2, padx=20, pady=10, sticky=NSEW)
 
     def set_scroll_bind(self):
-        # self.books_frame_list[self.last_index]
-        pass
+        self.books_frame_list[self.last_index].bind("<Visibility>", lambda _: print("Visible"))
 
     def reset(self):
         self.current_page = 0
@@ -439,18 +472,9 @@ class AllBooksFrame(CTkFrame):
         self.books_frame_list = self.books_frame_list[:50]
 
 
-class AddBooksWindow(CTkToplevel):
+class AddNewBookFrame(CTkFrame):
     def __init__(self, database: LibraryDB, *args, **kwargs):
-        CTkToplevel.__init__(self, *args, **kwargs)
-        self.database = database
-
-    def create_widgets(self):
-        pass
-
-
-class EditBooksWindow(CTkToplevel):
-    def __init__(self, database: LibraryDB, *args, **kwargs):
-        CTkToplevel.__init__(self, *args, **kwargs)
+        CTkFrame.__init__(self, *args, **kwargs)
         self.database = database
 
     def create_widgets(self):
@@ -475,9 +499,7 @@ class LibraryApp(CTk):
 
         self.logo_label = CTkLabel(self.sidebar_frame, text="LMS", font=CTkFont(size=20, weight=BOLD))
 
-        self.sidebar_insert_btn = CTkButton(self.sidebar_frame, text="Insert New Book", width=200, font=CTkFont(**BUTTON_FONT), state=DISABLED, command=lambda: print("Insert"))
-        self.sidebar_update_btn = CTkButton(self.sidebar_frame, text="Update Book Details", width=200, font=CTkFont(**BUTTON_FONT), state=DISABLED, command=lambda: print("Update"))
-        self.sidebar_delete_btn = CTkButton(self.sidebar_frame, text="Remove a Book", width=200, font=CTkFont(**BUTTON_FONT), state=DISABLED, command=lambda: print("Delete"))
+        self.sidebar_insert_btn = CTkButton(self.sidebar_frame, text="Insert New Book", width=200, font=CTkFont(**BUTTON_FONT), state=DISABLED, command=self.insert_new_book)
 
         self.separator_1 = CTkSeparator(self.sidebar_frame)
 
@@ -506,7 +528,7 @@ class LibraryApp(CTk):
         self.container = CTkScrollableFrame(self, label_text="Login", width=self.winfo_width(), height=self.winfo_height())
         self.current_frame = LoginFrame
         self.frames = {}
-        self.frame_classes = (RegisterFrame, LoginFrame, DashboardFrame, AllBooksFrame)
+        self.frame_classes = (RegisterFrame, LoginFrame, DashboardFrame, AllBooksFrame, AddNewBookFrame)
         for f in self.frame_classes:
             frame = f(self.container, self)
             self.frames[f] = frame
@@ -524,26 +546,25 @@ class LibraryApp(CTk):
         self.sidebar_frame.grid_rowconfigure(4, weight=1)
         self.logo_label.grid(row=0, column=0, padx=20, pady=(20, 10), sticky=N)
 
-        self.sidebar_insert_btn.grid(row=1, column=0, padx=20, pady=10, ipady=5, sticky=N)
-        self.sidebar_update_btn.grid(row=2, column=0, padx=20, pady=10, ipady=5, sticky=N)
-        self.sidebar_delete_btn.grid(row=3, column=0, padx=20, pady=10, ipady=5, sticky=N)
+        self.sidebar_dashboard_btn.grid(row=1, column=0, padx=20, pady=10, ipady=5, sticky=N)
+        self.sidebar_show_all_books_btn.grid(row=2, column=0, padx=20, pady=10, ipady=5, sticky=N)
+        self.sidebar_insert_btn.grid(row=3, column=0, padx=20, pady=10, ipady=5, sticky=N)
 
         self.separator_1.grid(row=4, column=0, padx=20, pady=10, sticky=EW)
 
-        self.sidebar_dashboard_btn.grid(row=5, column=0, padx=20, pady=10, ipady=5, sticky=N)
-        self.sidebar_show_all_books_btn.grid(row=6, column=0, padx=20, pady=10, ipady=5, sticky=N)
-
-        self.appearance_mode_label.grid(row=7, column=0, padx=20, pady=(10, 0), sticky=N)
-        self.appearance_mode_optionmenu.grid(row=8, column=0, padx=20, pady=(10, 10), sticky=N)
-        self.scaling_label.grid(row=9, column=0, padx=20, pady=(10, 0), sticky=N)
-        self.scaling_optionmenu.grid(row=10, column=0, padx=20, pady=(10, 20), sticky=N)
+        self.appearance_mode_label.grid(row=5, column=0, padx=20, pady=(10, 0), sticky=N)
+        self.appearance_mode_optionmenu.grid(row=6, column=0, padx=20, pady=(10, 10), sticky=N)
+        self.scaling_label.grid(row=7, column=0, padx=20, pady=(10, 0), sticky=N)
+        self.scaling_optionmenu.grid(row=8, column=0, padx=20, pady=(10, 20), sticky=N)
 
         self.container.grid(row=0, column=5, padx=10, pady=5, sticky=NSEW)
 
-    def change_appearance_mode_event(self, new_appearance_mode: str):
+    @staticmethod
+    def change_appearance_mode_event(new_appearance_mode: str):
         set_appearance_mode(new_appearance_mode)
 
-    def change_scaling_event(self, new_scaling: str):
+    @staticmethod
+    def change_scaling_event(new_scaling: str):
         new_scaling_float = int(new_scaling.replace("%", "")) / 100
         set_widget_scaling(new_scaling_float)
 
@@ -586,14 +607,12 @@ class LibraryApp(CTk):
 
     def enable_sidebar_buttons(self):
         self.sidebar_insert_btn.configure(state=NORMAL)
-        self.sidebar_update_btn.configure(state=NORMAL)
-        self.sidebar_delete_btn.configure(state=NORMAL)
         self.sidebar_dashboard_btn.configure(state=NORMAL)
         self.sidebar_show_all_books_btn.configure(state=NORMAL)
 
     def add_logout_btn(self):
-        self.separator_2.grid(row=11, column=0, padx=20, pady=10, sticky=EW)
-        self.logout_btn.grid(row=12, column=0, padx=20, pady=(10, 20))
+        self.separator_2.grid(row=9, column=0, padx=20, pady=10, sticky=EW)
+        self.logout_btn.grid(row=10, column=0, padx=20, pady=(10, 20))
 
     def logout(self):
         global IS_LOGGED_IN
@@ -619,10 +638,18 @@ class LibraryApp(CTk):
     def show_dashboard(self):
         self.remove_frame(self.current_frame)
         self.show_frame(DashboardFrame)
+        self.frames[DashboardFrame].reset()
         self.current_frame = DashboardFrame
 
     def show_all_books(self):
-        self.database.get(table="books", columns=["*"])
+        self.remove_frame(self.current_frame)
+        self.show_frame(AllBooksFrame)
+        self.current_frame = AllBooksFrame
+
+    def insert_new_book(self):
+        self.remove_frame(self.current_frame)
+        self.show_frame(AddNewBookFrame)
+        self.current_frame = AddNewBookFrame
 
 
 if __name__ == '__main__':
