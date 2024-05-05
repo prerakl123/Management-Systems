@@ -1,4 +1,5 @@
 import os
+from typing import Literal
 
 from dotenv import load_dotenv
 from pymysql import connect
@@ -44,18 +45,25 @@ class LibraryDB:
             ]
         return all_table_desc
 
-    def get(self, table: str, columns: list[str], where: list[str] = None, limit: int = 1000, offset: int = 0):
+    def get(
+            self,
+            table: Literal["authors", "books", "borrowed_books", "genre", "librarian", "members", "reviews", "shelf", "transactions"],
+            columns: list[str],
+            where: list[str] = None,
+            limit: int = 1000,
+            offset: int = 0
+    ):
         if '*' in columns:
             query = f"SELECT * FROM {table} "
         else:
             query = f"SELECT {','.join(columns)} FROM {table} "
 
         if where is not None:
-            query += ' '.join(where)
+            query += 'WHERE ' + ' '.join(where)
 
         query += f' LIMIT {limit} '
         query += f'OFFSET {offset}'
-
+        # print(query)
         self.cursor.execute(query)
         return self.cursor.fetchall()
 
@@ -64,6 +72,8 @@ class LibraryDB:
             self.cursor.execute(query, args=args)
         elif isinstance(args, tuple):
             self.cursor.execute(query, args=flatten(args))
+        elif args is None:
+            self.cursor.execute(query)
 
         return self.cursor.fetchall()
 
@@ -98,4 +108,12 @@ if __name__ == '__main__':
     #     ("Tenali Rama", "Indian"),
     #     table="authors",
     #     columns=["name", "nationality"])
+    # print(db.get(table="books", columns=["*"], limit=50, offset=0))
+    # print(db.get(
+    #     table="librarian",
+    #     columns=["username", "passhash"],
+    #     where=['username="bj2407"'],
+    #     limit=1
+    # ))
+    # print(db.get_from_query("SELECT COUNT(*) FROM librarian;"))
     db.engine.close()
