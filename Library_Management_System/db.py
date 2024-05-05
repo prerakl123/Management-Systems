@@ -6,6 +6,7 @@ from pymysql.connections import Connection
 from pymysql.cursors import Cursor
 
 load_dotenv('.env')
+flatten = lambda t: tuple(sum(t, ()))
 
 
 class LibraryDB:
@@ -58,9 +59,32 @@ class LibraryDB:
         self.cursor.execute(query)
         return self.cursor.fetchall()
 
-    def insert(self, *args: tuple[str], table: str, columns: list[str] = None, where: list[str] = None):
-        if columns is not None
-        query = f'INSERT INTO {table} VALUES'
+    def get_from_query(self, query, args=None):
+        if isinstance(args, dict):
+            self.cursor.execute(query, args=args)
+        elif isinstance(args, tuple):
+            self.cursor.execute(query, args=flatten(args))
+
+        return self.cursor.fetchall()
+
+    def insert(self, *args: tuple, table: str, columns: list[str] = None, where: list[str] = None):
+        if columns is not None:
+            query = f"INSERT INTO {table}({','.join(columns)}) VALUES "
+        else:
+            query = f"INSERT INTO {table} VALUES "
+
+        cols = len(args[0])
+        row_list = []
+        for _ in args:
+            row_list.append("(" + ",".join(["%s" for _ in range(cols)]) + ")")
+
+        query += ','.join(row_list)
+
+        if where is not None:
+            query += ' '.join(where)
+
+        self.cursor.execute(query, args=flatten(args))
+        self.engine.commit()
 
 
 if __name__ == '__main__':
@@ -68,4 +92,10 @@ if __name__ == '__main__':
 
     db = LibraryDB()
     pprint(db.get_table_desc(), indent=4, width=80, sort_dicts=False, depth=3)
+    # print(db.get_from_query("SELECT * FROM genre;"))
+    # db.insert(
+    #     ("William Dafoe", "American"),
+    #     ("Tenali Rama", "Indian"),
+    #     table="authors",
+    #     columns=["name", "nationality"])
     db.engine.close()
