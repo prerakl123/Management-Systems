@@ -1,3 +1,4 @@
+import os
 from tkinter import Frame
 from tkinter.constants import (
     NSEW,
@@ -6,7 +7,7 @@ from tkinter.constants import (
     BOTH,
     X,
     NW,
-    DISABLED
+    DISABLED, END, TOP, CENTER, W
 )
 from tkinter.font import (
     BOLD,
@@ -14,6 +15,7 @@ from tkinter.font import (
     ITALIC
 )
 
+from PIL import Image
 from customtkinter import (
     set_appearance_mode,
     set_widget_scaling,
@@ -24,10 +26,12 @@ from customtkinter import (
     CTkFrame,
     CTkOptionMenu,
     CTkScrollableFrame,
-    CTkEntry
+    CTkEntry,
+    CTkImage
 )
 from db import LibraryDB
 from dotenv import load_dotenv
+from tkcalendar import Calendar
 from werkzeug.security import generate_password_hash, check_password_hash
 
 load_dotenv('.env')
@@ -43,6 +47,10 @@ PRINTABLE_CHARS = (
     list("\\|]}[{'\";:/?.>,<=+-_)(*&^%$#@!") +
     list("1234567890")
 )
+IMG_PATH = os.path.join(os.path.dirname(os.path.realpath(__file__)), "img")
+# BG_IMG = CTkImage(Image.open(os.path.join(IMG_PATH, "library-img-2.jpg")))
+EDIT_IMG = CTkImage(Image.open(os.path.join(IMG_PATH, "edit_logo.png")))
+DELETE_IMG = CTkImage(Image.open(os.path.join(IMG_PATH, "delete_bin_logo.png")))
 
 
 class CTkSeparator(Frame):
@@ -313,7 +321,7 @@ class DashboardFrame(CTkFrame):
             {
                 "title": "Fines",
                 "subtitle": "Total fine collection\ntill date",
-                "number": self.database.get_from_query("SELECT COUNT(*) FROM transactions;")[0][0]
+                "number": self.database.get_from_query("SELECT SUM(fine) FROM transactions;")[0][0]
             },
             {
                 "title": "Members",
@@ -435,6 +443,9 @@ class AllBooksFrame(CTkFrame):
         availability_label = CTkLabel(frame, text="Total Copies: " + availability, width=300, text_color="#c73a3a", font=CTkFont(family="Cascadia Code", size=16))
         borrowed_label = CTkLabel(frame, text="Borrowed Copies: " + borrowed_nums, width=300, text_color="#16ba27", font=CTkFont(family="Cascadia Code", size=16))
 
+        edit_btn = CTkButton(frame, image=EDIT_IMG, fg_color="#cccccc", command=lambda: self.edit_book(metadata), cursor='hand2', text="")
+        delete_btn = CTkButton(frame, image=DELETE_IMG, fg_color="#cccccc", command=lambda: self.delete_book(metadata), cursor='hand2', text="")
+
         self.books_frame_list.append((
             frame,
             title_label,
@@ -443,7 +454,9 @@ class AllBooksFrame(CTkFrame):
             publication_label,
             isbn_label,
             availability_label,
-            borrowed_label
+            borrowed_label,
+            edit_btn,
+            delete_btn
         ))
 
     def create_all(self):
@@ -452,7 +465,11 @@ class AllBooksFrame(CTkFrame):
             self.create_frame_units(metadata)
 
     def create_widgets(self):
-        for frame, title, author, genre, publication, isbn, availability, borrowed in self.books_frame_list:
+        for (frame, title, author, genre,
+             publication, isbn, availability,
+             borrowed, edit, delete
+             ) in self.books_frame_list:
+
             frame.pack(anchor=N, expand=True, fill=X, pady=10)
             title.grid(row=0, column=0, columnspan=4, pady=10, sticky=NSEW)
             author.grid(row=1, column=0, padx=20, pady=10, sticky=NSEW)
@@ -461,6 +478,9 @@ class AllBooksFrame(CTkFrame):
             isbn.grid(row=2, column=1, padx=20, pady=10, sticky=NSEW)
             availability.grid(row=1, column=2, padx=20, pady=10, sticky=NSEW)
             borrowed.grid(row=2, column=2, padx=20, pady=10, sticky=NSEW)
+
+            edit.grid(row=1, column=3, padx=20, pady=10)
+            delete.grid(row=2, column=3, padx=20, pady=10)
 
     def set_scroll_bind(self):
         self.books_frame_list[self.last_index].bind("<Visibility>", lambda _: print("Visible"))
@@ -471,14 +491,165 @@ class AllBooksFrame(CTkFrame):
         self.last_index = 49
         self.books_frame_list = self.books_frame_list[:50]
 
+    def edit_book(self, metadata):
+        pass
+
+    def delete_book(self, metadata):
+        pass
+
 
 class AddNewBookFrame(CTkFrame):
-    def __init__(self, database: LibraryDB, *args, **kwargs):
-        CTkFrame.__init__(self, *args, **kwargs)
-        self.database = database
+    def __init__(self, parent, controller, **kwargs):
+        CTkFrame.__init__(self, parent, **kwargs)
+        self.controller = controller
+        self.database: LibraryDB = self.controller.database
+        self.container_label_text = "Insert"
+
+        self.author_id = -1
+        self.genre = ""
+        self.shelf_id = -1
+
+        self.heading_label = CTkLabel(self, text="Add a Book", font=CTkFont(**HEADING_FONT))
+        self.frame = CTkFrame(self, width=600, height=450)
+
+        width = 350
+
+        self.book_title_label = CTkLabel(self.frame, width=width, text='Title', font=CTkFont(**LABEL_FONT))
+        self.book_title_entry = CTkEntry(self.frame, width=width, placeholder_text="Enter book title", font=CTkFont(**ENTRY_FONT))
+
+        self.author_label = CTkLabel(self.frame, width=width, text="Author", font=CTkFont(**LABEL_FONT))
+        self.author_entry = CTkEntry(self.frame, width=width, placeholder_text="Enter author name", font=CTkFont(**ENTRY_FONT))
+        self.author_optionmenu = CTkOptionMenu(
+            self.frame,
+            width=width,
+            font=CTkFont(family="Cascadia Code", weight=NORMAL),
+            values=[a[0] for a in self.database.get_from_query(
+                "SELECT name FROM authors ORDER BY name ASC;"
+            )],
+            command=self.insert_author
+        )
+        self.author_entry.bind('<KeyPress>', self.update_author_optionmenu)
+        self.author_entry.bind('<KeyRelease>', self.update_author_optionmenu)
+
+        self.genre_label = CTkLabel(self.frame, width=width, text="Genre", font=CTkFont(**LABEL_FONT))
+        self.genre_entry = CTkEntry(self.frame, width=width, placeholder_text="Enter genres separated by ';'", font=CTkFont(**ENTRY_FONT))
+
+        self.publ_label = CTkLabel(self.frame, width=width, text="Publication Date", font=CTkFont(**LABEL_FONT))
+        self.publ_cal = Calendar(
+            self.frame,
+            selectmode='day',
+            font=("Cascadia Code", 12),
+            showweeknumbers=False,
+            cursor='hand2',
+            date_pattern='yyyy-mm-dd',
+            borderwidth=1,
+            bordercolor='white'
+        )
+
+        self.isbn_label = CTkLabel(self.frame, width=width, text="ISBN", font=CTkFont(**LABEL_FONT))
+        self.isbn_entry = CTkEntry(self.frame, width=width, placeholder_text="Enter ISBN no.", font=CTkFont(**ENTRY_FONT))
+
+        self.avail_label = CTkLabel(self.frame, width=width, text="Availability", font=CTkFont(**LABEL_FONT))
+        self.avail_entry = CTkEntry(self.frame, width=width, placeholder_text="Enter no. of available books", font=CTkFont(**ENTRY_FONT))
+
+        self.shelf_label = CTkLabel(self.frame, width=width, text="Shelf", font=CTkFont(**LABEL_FONT))
+        self.shelf_entry = CTkEntry(self.frame, width=width, placeholder_text="Enter shelf", font=CTkFont(**ENTRY_FONT))
+        self.shelf_optionmenu = CTkOptionMenu(
+            self.frame,
+            width=width,
+            font=CTkFont(family="Cascadia Code", weight=NORMAL),
+            values=[s[0] for s in self.database.get_from_query(
+                "SELECT location FROM shelf ORDER BY location ASC;"
+            )],
+            command=self.insert_shelf
+        )
+        self.shelf_entry.bind("<KeyPress>", self.update_shelf_optionmenu)
+        self.shelf_entry.bind("<KeyRelease>", self.update_shelf_optionmenu)
+
+        self.proceed_btn = CTkButton(self.frame, width=width, text="Add Book", font=CTkFont(**BUTTON_FONT), command=self.add_new_book)
 
     def create_widgets(self):
-        pass
+        self.heading_label.pack(side=TOP, anchor=CENTER, pady=(30, 20))
+        self.frame.pack(side=TOP, anchor=CENTER, pady=(10, 20), padx=(10, 10))
+
+        self.book_title_label.grid(row=0, column=0, padx=(30, 30), pady=(30, 5), sticky=W)
+        self.book_title_entry.grid(row=1, column=0, padx=(30, 30), pady=(5, 10), ipady=5, ipadx=5)
+
+        self.isbn_label.grid(row=0, column=1, padx=(30, 30), pady=(20, 5), sticky=W)
+        self.isbn_entry.grid(row=1, column=1, padx=(30, 30), pady=(5, 10), ipady=5, ipadx=5)
+
+        self.author_label.grid(row=2, column=0, padx=(30, 30), pady=(20, 5), sticky=W)
+        self.author_entry.grid(row=3, column=0, padx=(30, 30), pady=(5, 5), ipady=5, ipadx=5)
+        self.author_optionmenu.grid(row=4, column=0, padx=(30, 30), pady=(5, 10), ipady=5, ipadx=0)
+
+        self.shelf_label.grid(row=2, column=1, padx=(30, 30), pady=(20, 5), sticky=W)
+        self.shelf_entry.grid(row=3, column=1, padx=(30, 30), pady=(5, 5), ipady=5, ipadx=5)
+        self.shelf_optionmenu.grid(row=4, column=1, padx=(30, 30), pady=(5, 10), ipady=5, ipadx=0)
+
+        self.genre_label.grid(row=5, column=0, padx=(30, 30), pady=(20, 5), sticky=W)
+        self.genre_entry.grid(row=6, column=0, padx=(30, 30), pady=(5, 10), ipady=5, ipadx=5)
+
+        self.avail_label.grid(row=5, column=1, padx=(30, 30), pady=(20, 5), sticky=W)
+        self.avail_entry.grid(row=6, column=1, padx=(30, 30), pady=(5, 10), ipady=5, ipadx=5)
+
+        self.publ_label.grid(row=7, column=0, columnspan=2, padx=(30, 30), pady=(20, 5))
+        self.publ_cal.grid(row=8, column=0, columnspan=2, padx=(30, 30), pady=(5, 10))
+
+        self.proceed_btn.grid(row=9, column=0, columnspan=2, padx=(30, 30), pady=(10, 30))
+
+    def insert_author(self, author: str):
+        self.author_entry.delete(0, END)
+        self.author_entry.insert(0, author)
+
+    def insert_shelf(self, shelf: str):
+        self.shelf_entry.delete(0, END)
+        self.shelf_entry.insert(0, shelf)
+
+    def update_author_optionmenu(self, _):
+        authors = self.database.get_from_query(
+            f'SELECT name FROM authors WHERE name LIKE "%{self.author_entry.get()}%" ORDER BY name ASC;'
+        )
+        self.author_optionmenu.configure(values=[a[0] for a in authors])
+        self.author_optionmenu.update_idletasks()
+        try:
+            self.author_optionmenu.set(authors[0][0])
+        except IndexError:
+            self.author_optionmenu.set("")
+
+    def update_shelf_optionmenu(self, _):
+        shelves = self.database.get_from_query(
+            f"SELECT location FROM shelf WHERE location LIKE \"%{self.shelf_entry.get()}%\" ORDER BY location ASC;"
+        )
+        self.shelf_optionmenu.configure(values=[s[0] for s in shelves])
+        self.shelf_optionmenu.update_idletasks()
+        try:
+            self.shelf_optionmenu.set(shelves[0][0])
+        except IndexError:
+            self.shelf_optionmenu.set('')
+
+    def add_new_book(self):
+        title = self.book_title_entry.get()
+        author = self.avail_entry.get()
+        genres = list(map(lambda x: x.strip(), self.genre_entry.get().split(';')))
+        publ = self.publ_cal.get_date()
+        isbn = self.isbn_entry.get()
+        avail = self.avail_entry.get()
+        shelf = self.shelf_entry.get()
+
+        db_author = self.database.get_from_query(
+            f"SELECT id, name FROM authors WHERE name=\"{author}\";"
+        )[0]
+        if len(db_author) > 0:
+            author = db_author[0][0]
+        else:
+            self.database.insert(
+                (author, None),
+                table="authors",
+                columns=["name", "nationality"]
+            )
+            db_author = self.database.get_from_query(
+                f"SELECT id, name FROM authors WHERE name=\"{author}\";"
+            )[0]
 
 
 class LibraryApp(CTk):
@@ -624,16 +795,6 @@ class LibraryApp(CTk):
 
         self.separator_2.grid_forget()
         self.logout_btn.grid_forget()
-
-    def get_famous_books(self):
-        famous_books = self.database.get_from_query(
-            "SELECT COUNT(*) " +
-            "FROM `borrowed_books` " +
-            "GROUP BY `bookid` DESC " +
-            "LIMIT 5;"
-        )
-        if not famous_books:
-            return "No borrowed books found!"
 
     def show_dashboard(self):
         self.remove_frame(self.current_frame)
