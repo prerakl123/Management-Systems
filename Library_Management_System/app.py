@@ -1,13 +1,10 @@
 import os
 from tkinter import Frame
 from tkinter.constants import (
-    NSEW,
-    EW,
-    N,
-    BOTH,
-    X,
-    NW,
-    DISABLED, END, TOP, CENTER, W
+    NSEW, EW, N, NW, W,
+    BOTH, X,
+    DISABLED,
+    END, TOP, CENTER
 )
 from tkinter.font import (
     BOLD,
@@ -629,7 +626,7 @@ class AddNewBookFrame(CTkFrame):
 
     def add_new_book(self):
         title = self.book_title_entry.get()
-        author = self.avail_entry.get()
+        author = self.author_entry.get()
         genres = list(map(lambda x: x.strip(), self.genre_entry.get().split(';')))
         publ = self.publ_cal.get_date()
         isbn = self.isbn_entry.get()
@@ -638,7 +635,7 @@ class AddNewBookFrame(CTkFrame):
 
         db_author = self.database.get_from_query(
             f"SELECT id, name FROM authors WHERE name=\"{author}\";"
-        )[0]
+        )
         if len(db_author) > 0:
             author = db_author[0][0]
         else:
@@ -647,9 +644,33 @@ class AddNewBookFrame(CTkFrame):
                 table="authors",
                 columns=["name", "nationality"]
             )
-            db_author = self.database.get_from_query(
-                f"SELECT id, name FROM authors WHERE name=\"{author}\";"
+            author = self.database.get_from_query(
+                f"SELECT id FROM authors WHERE name=\"{author}\";"
             )[0]
+
+        genre_names = []
+        for g in genres:
+            genr = None
+            try:
+                genr = self.database.get_from_query(f"SELECT id FROM genre WHERE name=\"{g}\"")[0][0]
+            except IndexError:
+                self.database.insert(tuple([g]), table="genre", columns=["name"])
+            finally:
+                if genr is None:
+                    genr = self.database.get_from_query(f"SELECT id FROM genre WHERE name=\"{g}\"")[0][0]
+                genre_names.append(str(genr))
+
+        shelf = self.database.get_from_query(f"SELECT id FROM shelf WHERE location=\"{shelf}\"")
+
+        self.database.insert(
+            (title, author, ";".join(genre_names), publ, isbn, avail, shelf),
+            table="books",
+            columns=["title", "authorid", "genreid", "publication_year", "isbn", "availability", "shelfid"]
+        )
+
+        self.controller.remove_frame(self.controller.current_frame)
+        self.controller.show_frame(AllBooksFrame)
+        self.controller.current_frame = AllBooksFrame
 
 
 class LibraryApp(CTk):
