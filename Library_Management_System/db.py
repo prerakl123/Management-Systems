@@ -96,6 +96,19 @@ class LibraryDB:
         self.cursor.execute(query, args=flatten(args))
         self.engine.commit()
 
+    def execute_query(self, query, args=None):
+        if isinstance(args, dict):
+            self.cursor.execute(query, args=args)
+        elif isinstance(args, tuple):
+            self.cursor.execute(query, args=flatten(args))
+        elif args is None:
+            self.cursor.execute(query)
+
+        print(query)
+
+        self.engine.commit()
+        return self.cursor.fetchall()
+
 
 if __name__ == '__main__':
     from pprint import pprint
