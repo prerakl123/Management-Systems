@@ -389,13 +389,75 @@ class AllBooksFrame(CTkFrame):
         self.database: LibraryDB = self.controller.database
         self.container_label_text = "Library Database View"
 
+        self.is_edit_mode_on = False
+
         self.current_page = 0
         self.last_index = -1
         self.books_frame_list = []
 
+        self.entry_grid_map = [
+            {
+                'row': 0,
+                'column': 0,
+                "columnspan": 4
+            },
+            {
+                'row': 1,
+                'column': 0
+            },
+            {
+                'row': 2,
+                'column': 0
+            },
+            {
+                'row': 1,
+                'column': 1
+            },
+            {
+                'row': 2,
+                'column': 1
+            },
+            {
+                'row': 1,
+                'column': 2
+            }
+        ]
+
+        self.lbl_grid_map = [
+            {
+                'row': 0,
+                'column': 0,
+                "columnspan": 4
+            },
+            {
+                'row': 1,
+                'column': 0
+            },
+            {
+                'row': 2,
+                'column': 0
+            },
+            {
+                'row': 1,
+                'column': 1
+            },
+            {
+                'row': 2,
+                'column': 1
+            },
+            {
+                'row': 1,
+                'column': 2
+            },
+            {
+                "row": 2,
+                "column": 2
+            }
+        ]
+
         self.create_all()
 
-    def get_books(self, increment=False):
+    def get_books(self, increment=False) -> list[dict]:
         if increment:
             self.current_page += 1
 
@@ -408,7 +470,7 @@ class AllBooksFrame(CTkFrame):
 
         return book_list
 
-    def create_frame_units(self, metadata):
+    def create_frame_units(self, metadata: dict):
         book_name = metadata.get('title')
         genres = []
         for g in metadata.get('genreid').rstrip(';').split(';'):
@@ -430,6 +492,7 @@ class AllBooksFrame(CTkFrame):
         )[0][0])
 
         frame = CTkFrame(self, width=400, height=150)
+        frame.bind("<Escape>", lambda _: self.cancel_edit(_, frame))
         title_label = CTkLabel(frame, text=book_name, width=1700, text_color="#9e9515", font=CTkFont(
             family="Cascadia Code", size=24, weight=BOLD))
         author_label = CTkLabel(frame, text="Author: " + author, text_color="#2863b5", width=300, font=CTkFont(family="Cascadia Code", size=16, slant=ITALIC))
@@ -440,8 +503,46 @@ class AllBooksFrame(CTkFrame):
         availability_label = CTkLabel(frame, text="Total Copies: " + availability, width=300, text_color="#c73a3a", font=CTkFont(family="Cascadia Code", size=16))
         borrowed_label = CTkLabel(frame, text="Borrowed Copies: " + borrowed_nums, width=300, text_color="#16ba27", font=CTkFont(family="Cascadia Code", size=16))
 
-        edit_btn = CTkButton(frame, image=EDIT_IMG, fg_color="#cccccc", command=lambda: self.edit_book(metadata), cursor='hand2', text="")
-        delete_btn = CTkButton(frame, image=DELETE_IMG, fg_color="#cccccc", command=lambda: self.delete_book(metadata), cursor='hand2', text="")
+        edit_btn = CTkButton(
+            frame, image=EDIT_IMG,
+            fg_color="#cccccc", hover_color="#a6a6a6",
+            command=lambda: self.edit_book(frame),
+            cursor='hand2', text=""
+        )
+        delete_btn = CTkButton(
+            frame, image=DELETE_IMG,
+            fg_color="#cccccc", hover_color="#a6a6a6",
+            command=lambda: self.delete_book(frame),
+            cursor='hand2', text=""
+        )
+
+        title_entry = CTkEntry(frame, placeholder_text="Enter book title", font=CTkFont(**ENTRY_FONT), width=900)
+        author_entry = CTkEntry(frame, placeholder_text="Enter author name", font=CTkFont(**ENTRY_FONT), width=300)
+        genre_entry = CTkEntry(frame, placeholder_text="Enter genre", font=CTkFont(**ENTRY_FONT), width=300)
+        publ_entry = CTkEntry(frame, placeholder_text="Enter publication date (yyyy-mm-dd)", font=CTkFont(**ENTRY_FONT), width=300)
+        isbn_entry = CTkEntry(frame, placeholder_text="Enter ISBN", font=CTkFont(**ENTRY_FONT), width=300)
+        avail_entry = CTkEntry(frame, placeholder_text="Enter available no. of books", font=CTkFont(**ENTRY_FONT), width=300)
+
+        title_entry.insert(0, title_label.cget('text'))
+        author_entry.insert(0, author_label.cget('text').split(': ')[-1])
+        genre_entry.insert(0, genre_label.cget('text').split(': ')[-1])
+        publ_entry.insert(0, publication_label.cget('text').split(': ')[-1])
+        isbn_entry.insert(0, isbn_label.cget('text').split(': ')[-1])
+        avail_entry.insert(0, availability_label.cget('text').split(': ')[-1])
+
+        title_entry.bind("<Return>", lambda _: self.confirm_edit(_, frame, metadata))
+        author_entry.bind("<Return>", lambda _: self.confirm_edit(_, frame, metadata))
+        genre_entry.bind("<Return>", lambda _: self.confirm_edit(_, frame, metadata))
+        publ_entry.bind("<Return>", lambda _: self.confirm_edit(_, frame, metadata))
+        isbn_entry.bind("<Return>", lambda _: self.confirm_edit(_, frame, metadata))
+        avail_entry.bind("<Return>", lambda _: self.confirm_edit(_, frame, metadata))
+
+        title_entry.bind("<Escape>", lambda _: self.cancel_edit(_, frame))
+        author_entry.bind("<Escape>", lambda _: self.cancel_edit(_, frame))
+        genre_entry.bind("<Escape>", lambda _: self.cancel_edit(_, frame))
+        publ_entry.bind("<Escape>", lambda _: self.cancel_edit(_, frame))
+        isbn_entry.bind("<Escape>", lambda _: self.cancel_edit(_, frame))
+        avail_entry.bind("<Escape>", lambda _: self.cancel_edit(_, frame))
 
         self.books_frame_list.append((
             frame,
@@ -452,8 +553,16 @@ class AllBooksFrame(CTkFrame):
             isbn_label,
             availability_label,
             borrowed_label,
+
             edit_btn,
-            delete_btn
+            delete_btn,
+
+            title_entry,
+            author_entry,
+            genre_entry,
+            publ_entry,
+            isbn_entry,
+            avail_entry
         ))
 
     def create_all(self):
@@ -464,7 +573,9 @@ class AllBooksFrame(CTkFrame):
     def create_widgets(self):
         for (frame, title, author, genre,
              publication, isbn, availability,
-             borrowed, edit, delete
+             borrowed, edit, delete,
+             ti_en, au_en, ge_en,
+             pu_en, is_en, av_en
              ) in self.books_frame_list:
 
             frame.pack(anchor=N, expand=True, fill=X, pady=10)
@@ -479,6 +590,20 @@ class AllBooksFrame(CTkFrame):
             edit.grid(row=1, column=3, padx=20, pady=10)
             delete.grid(row=2, column=3, padx=20, pady=10)
 
+            ti_en.grid(row=0, column=0, columnspan=4, pady=10, sticky=NSEW)
+            au_en.grid(row=1, column=0, padx=20, pady=10, sticky=NSEW)
+            ge_en.grid(row=2, column=0, padx=20, pady=10, sticky=NSEW)
+            pu_en.grid(row=1, column=1, padx=20, pady=10, sticky=NSEW)
+            is_en.grid(row=2, column=1, padx=20, pady=10, sticky=NSEW)
+            av_en.grid(row=1, column=2, padx=20, pady=10, sticky=NSEW)
+
+            ti_en.grid_forget()
+            au_en.grid_forget()
+            ge_en.grid_forget()
+            pu_en.grid_forget()
+            is_en.grid_forget()
+            av_en.grid_forget()
+
     def set_scroll_bind(self):
         self.books_frame_list[self.last_index].bind("<Visibility>", lambda _: print("Visible"))
 
@@ -488,11 +613,87 @@ class AllBooksFrame(CTkFrame):
         self.last_index = 49
         self.books_frame_list = self.books_frame_list[:50]
 
-    def edit_book(self, metadata):
-        pass
+    def switch_entry_labels(self, frame):
+        if self.is_edit_mode_on:
+            ind = -1
+            for child in frame.winfo_children():
+                if isinstance(child, CTkLabel):
+                    child.grid_forget()
 
-    def delete_book(self, metadata):
-        pass
+                if isinstance(child, CTkEntry):
+                    ind += 1
+                    child.grid(**self.entry_grid_map[ind], padx=20, pady=10, sticky=NSEW)
+        else:
+            ind = -1
+            updated_entries = []
+            for child in frame.winfo_children():
+                if isinstance(child, CTkEntry):
+                    updated_entries.append(child.get())
+                    child.grid_forget()
+
+                if isinstance(child, CTkLabel):
+                    ind += 1
+                    child.grid(**self.lbl_grid_map[ind], padx=20, pady=10, sticky=NSEW)
+            return updated_entries
+
+    def cancel_edit(self, _, frame):
+        self.is_edit_mode_on = False
+        ind = -1
+        for child in frame.winfo_children():
+            if isinstance(child, CTkEntry):
+                child.grid_forget()
+
+            if isinstance(child, CTkLabel):
+                ind += 1
+                child.grid(**self.lbl_grid_map[ind], padx=20, pady=10, sticky=NSEW)
+
+    def edit_book(self, frame):
+        if self.is_edit_mode_on:
+            return
+        self.is_edit_mode_on = True
+        self.switch_entry_labels(frame)
+
+    def confirm_edit(self, _, frame, metadata: dict):
+        self.is_edit_mode_on = False
+        updated_values = self.switch_entry_labels(frame)
+        print(updated_values)
+        lbl_list = []
+        for child in frame.winfo_children():
+            if isinstance(child, CTkLabel):
+                lbl_list.append(child)
+
+        for i in range(6):
+            lbl_list[i].configure(text=updated_values[i])
+
+        title, author, genre, pub, isbn, avail = updated_values
+        try:
+            author = self.database.get(table="authors", columns=["id"], where=[f'name="{author}"'])[0][0]
+        except IndexError:
+            self.database.insert(tuple([author]), table="authors", columns=['name'])
+            author = self.database.get(table="authors", columns=['id'], where=[f'name="{author}"'])[0][0]
+
+        gen_str = ''
+        for g in genre.split('|'):
+            try:
+                gen_str += str(self.database.get(table='genre', columns=['id'], where=[f'name="{g.strip()}"'])[0][0])
+            except IndexError:
+                self.database.insert(tuple([g]), table='genre', columns=['name'])
+                gen_str += str(self.database.get(table='genre', columns=['id'], where=[f'name="{g.strip()}"'])[0][0])
+            gen_str += ';'
+
+        self.database.execute_query(
+            "UPDATE books SET title=" +
+            f'"{title}", ' +
+            f'authorid={author}, ' +
+            f'genreid="{gen_str}", ' +
+            f'publication_year="{pub}", ' +
+            f'isbn="{isbn}", ' +
+            f'availability="{avail}" ' +
+            f'WHERE id={metadata["id"]};'
+        )
+
+    def delete_book(self, frame):
+        frame.forget()
 
 
 class AddNewBookFrame(CTkFrame):
